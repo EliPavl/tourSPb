@@ -1,0 +1,125 @@
+@startuml
+autonumber
+Actor User
+participant UI
+participant bff
+participant Product_Catalog
+participant ShoppingCart
+participant checkout
+participant Customer_Data
+participant Payment_Engine
+participant Billing
+participant Fulfilment
+
+== Product Overview page ==
+User -> UI: check all tours
+UI -> bff: request for product representation
+bff -> Product_Catalog: GET/all products
+Product_Catalog -> bff: return response
+bff -> UI: document with all Products
+UI -> User: present product page
+
+== Product Selection ==
+User -> UI: select concrete product
+UI -> bff: request document for product
+bff -> Product_Catalog: GET/product/{id}
+note over Product_Catalog
+if no such product -> return 404
+end note
+Product_Catalog -> bff: return response
+bff -> UI: return page
+UI -> User: present product page
+User -> UI: selects partcipants/parameters information
+UI -> bff: send request with parameters
+bff -> Product_Catalog: GET/availableOptions?parameters=date
+Product_Catalog -> bff: return available options
+bff -> UI: return page with available options
+User -> UI: add selected product to ShoppingCart
+UI -> bff: request to add product to basket
+bff -> ShoppingCart: POST / shoppingCart
+
+== Shopping Cart ==
+ShoppingCart -> ShoppingCart: perform validation / perform avail-ty check
+ShoppingCart -> Product_Catalog: GET / productAvail-ty
+Product_Catalog -> ShoppingCart: return 200 Product_Catalog
+ShoppingCart -> ShoppingCart: map/process avail-ty
+ShoppingCart -> bff: return response
+bff -> UI: return page
+UI -> User: present page to User
+
+== checkout ==
+User -> UI: click the button to start checkout
+UI -> bff: trigger checkout
+bff -> bff: trigger checkout business logic
+bff -> UI: return client login page
+UI -> User: present login page
+alt if customer has login
+User -> UI: log in
+UI -> bff: log in
+bff -> checkout: GET / loginData
+checkout -> Customer_Data: GET/ Customer_Data?login
+Customer_Data -> Customer_Data: query to DB by login
+note over Customer_Data: if no records, return 404
+Customer_Data -> checkout: return customer data
+checkout -> bff: return customer data
+bff -> UI: return customer data page
+UI -> User: present customer data page
+end
+alt if customer wants to create account
+User -> UI: create new account
+UI -> bff: create new account
+bff -> UI: client data form
+UI -> User: present form to fill
+User -> UI: fill form
+UI -> bff: client data form filled in
+bff -> checkout: POST/ customerAccount
+checkout -> Customer_Data: POST/ customerAccount
+Customer_Data -> Customer_Data: save data in DB
+Customer_Data -> checkout: customer data saved
+checkout -> bff: customer data saved
+bff -> UI: return page with customer data
+UI -> User: present page and offer to proceed to payment
+end
+User -> UI: click button proceed to payment
+UI -> bff: request payment form
+bff -> checkout: GET / paymentMethods
+checkout -> Payment_Engine: GET / paymentMethods
+Payment_Engine -> Payment_Engine: check available payment methods
+Payment_Engine -> checkout: return response
+checkout -> bff: return list of available methods and needed attributes
+bff -> UI: return page with preselected payment method with mandatory attributes
+UI -> User: present page
+User -> UI: select payment method
+UI -> bff: request form for selected method
+bff -> bff: check available forms
+bff -> UI: return needed form
+UI -> User: present requested form
+User -> UI: fill form
+UI -> bff: provide filled form
+bff -> checkout: POST / payment
+checkout -> Payment_Engine: POST/ payment
+Payment_Engine -> Payment_Engine: process payment
+Payment_Engine -> checkout: return response with payment status
+note over Payment_Engine: if error - return 400 / 408 / 500
+checkout -> Billing: POST/ billingRecord
+Billing -> Billing: persistent DB
+Billing -> checkout: return response
+checkout -> bff: return payment status
+bff -> UI: return page
+UI -> User: show summary page, ask for purchase confirmation
+User -> UI: confirm
+UI -> bff: forward confirmation
+bff -> checkout: POST/ purchase
+checkout -> checkout: take customer data from cache
+checkout -> checkout: map Customer, Billing model to Fulfilment model
+checkout -> Fulfilment: POST/ order
+Fulfilment -> Fulfilment: process order
+Fulfilment -> checkout: resturn responce with order status
+checkout -> bff: return response with purchase status
+bff -> UI: return purchase status
+UI -> User: show confirmation page
+
+
+
+
+@enduml
