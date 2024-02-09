@@ -9,3 +9,5 @@ parts:
 3. Architecture concept
 4. General workflow
 5. Use Case documentation
+
+Please see the whole documentation in tourSpb.adoc 
